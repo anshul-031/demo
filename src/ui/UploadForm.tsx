@@ -15,6 +15,27 @@ export const UploadForm: React.FC<UploadFormProps> = ({ domain, token, onComplet
   const [progress, setProgress] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
+  const [actionItemTypesInput, setActionItemTypesInput] = useState<string>('Follow-up Call, Send Documentation, Schedule Demo');
+  const selectedActionItemTypes = useMemo(
+    () => actionItemTypesInput
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0),
+    [actionItemTypesInput]
+  );
+
+  // Minimal parameter analysis support for demo
+  type ParamItem = { id: string; name: string; description: string; prompt: string; enabled: boolean; weight?: number };
+  const [parameters, setParameters] = useState<ParamItem[]>([
+    { id: 'rapport', name: 'Rapport Building', description: 'Warmth, empathy, trust-building', prompt: 'Evaluate rapport building and trust in the conversation. Note moments that increased or decreased rapport.', enabled: true, weight: 10 },
+    { id: 'discovery', name: 'Needs Discovery', description: 'Clarifying needs and pains', prompt: 'Assess how well the rep discovered needs, pain points, and desired outcomes. Cite specific questions and responses.', enabled: true, weight: 20 },
+    { id: 'objections', name: 'Objection Handling', description: 'Handling concerns and blockers', prompt: 'Evaluate how objections were identified and addressed. Include techniques used and customer reactions.', enabled: true, weight: 20 },
+    { id: 'value', name: 'Value Articulation', description: 'Explaining value and differentiation', prompt: 'Assess clarity of value proposition and differentiation. Provide concrete statements that landed well or poorly.', enabled: true, weight: 20 },
+    { id: 'closing', name: 'Closing Technique', description: 'Advancing to next steps', prompt: 'Evaluate closing attempts and next steps alignment. Identify any missed opportunities for commitment.', enabled: true, weight: 30 },
+  ]);
+  const enabledParameters = useMemo(() => parameters.filter(p => p.enabled), [parameters]);
+  const toggleParam = (id: string) => setParameters(prev => prev.map(p => p.id === id ? { ...p, enabled: !p.enabled } : p));
+  const updateWeight = (id: string, weight: number) => setParameters(prev => prev.map(p => p.id === id ? { ...p, weight: Number.isFinite(weight) ? Math.max(1, Math.min(100, weight)) : p.weight } : p));
 
   // util: add a log line (console + on-screen), keep last ~300 lines to avoid memory bloat
   const pushLog = useCallback((...parts: Array<unknown>) => {
@@ -165,8 +186,8 @@ export const UploadForm: React.FC<UploadFormProps> = ({ domain, token, onComplet
         fileName: f.name,
         contentType: f.type,
         fileSize: f.size,
-        customParameters: [],
-        selectedActionItemTypes: [],
+        customParameters: enabledParameters,
+        selectedActionItemTypes,
         originalContentType: f.type,
         audioCompressionUsed: false
       })
@@ -199,8 +220,8 @@ export const UploadForm: React.FC<UploadFormProps> = ({ domain, token, onComplet
           body: JSON.stringify({
             uploadIds: [completeData.upload.id],
             analysisType: 'parameters',
-            customParameters: [],
-            selectedActionItemTypes: []
+            customParameters: enabledParameters,
+            selectedActionItemTypes
           })
         });
         const analyzeText = await analyzeRes.clone().text();
@@ -246,6 +267,47 @@ export const UploadForm: React.FC<UploadFormProps> = ({ domain, token, onComplet
       <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Upload & Trigger Analysis</h2>
       <div style={{ marginBottom: '0.75rem' }}>
         <input type="file" accept={ACCEPTED.join(',')} onChange={handleFileChange} disabled={uploading} />
+      </div>
+      <div style={{ marginBottom: '1rem', padding: '0.75rem', border: '1px solid #e5e7eb', borderRadius: 8 }}>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>Parameter Analysis (optional)</div>
+        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>Enable and weight parameters to run parameter-based analysis. If all are disabled, the server will still run transcription and action item extraction.</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {parameters.map((p) => (
+            <div key={p.id} style={{ border: '1px solid #f3f4f6', borderRadius: 6, padding: 8, background: '#ffffff' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#111827', marginBottom: 6 }}>
+                <input type="checkbox" checked={p.enabled} onChange={() => toggleParam(p.id)} disabled={uploading} />
+                <span style={{ fontWeight: 600 }}>{p.name}</span>
+              </label>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>{p.description}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 12, color: '#374151' }}>Weight:</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={p.weight ?? 10}
+                  onChange={(e) => updateWeight(p.id, parseInt(e.target.value || '10', 10))}
+                  disabled={uploading}
+                  style={{ width: 64, padding: '2px 6px', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 12 }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ marginBottom: '0.75rem' }}>
+        <label style={{ display: 'block', fontSize: 12, color: '#374151', marginBottom: 4 }}>
+          Action item types (comma-separated)
+        </label>
+        <input
+          type="text"
+          value={actionItemTypesInput}
+          onChange={(e) => setActionItemTypesInput(e.target.value)}
+          disabled={uploading}
+          placeholder="e.g., Follow-up Call, Send Documentation"
+          style={{ width: '100%', padding: '0.5rem', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 14 }}
+        />
+        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>Passed to analyze API to prioritize/enable action item detection.</div>
       </div>
       {file && (
         <div style={{ fontSize: 12, marginBottom: '0.75rem', color: '#555' }}>

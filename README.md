@@ -5,6 +5,8 @@ A minimal React (Vite + TypeScript) application demonstrating how to integrate w
 1. Email/password authentication (`/api/auth/login`) returning a bearer token
 2. Multipart large file upload via `/api/upload-large` (start → get URLs → complete)
 3. Automatic analysis trigger on completion (server) + client fallback /api/analyze
+4. Optional Action Item Types: pass comma-separated action item types to influence extraction
+5. Optional Parameter Analysis: enable and weight parameters to run parameter-based analysis
 
 ## Features
 - Domain input (change target environment at runtime)
@@ -28,9 +30,12 @@ Open: http://localhost:5173
 1. Enter the API base domain (default: https://www.aicallmetrics.com)
 2. Log in using valid user credentials. The JSON response must include `token`.
 3. Select an audio file (MP3, WAV, M4A, AAC, OGG, FLAC, WebM) ≤ 5MB.
-4. Click "Upload & Analyze".
+4. Optionally edit the "Action item types" field to pass labels like "Follow-up Call, Send Documentation, Schedule Demo".
+5. Optionally enable/disable parameters and adjust weights under "Parameter Analysis".
+6. Click "Upload & Analyze".
 	- Server attempts auto-analysis inside `complete-upload`.
 	- If `analysisStarted` is false, the demo POSTs `/api/analyze` with the new `upload.id`.
+	- When no parameter analysis is requested (analysisType: "parameters" with empty customParameters), action item extraction is still triggered in the Analyze API; the demo forwards your selected action item types.
 5. Status box reports whether fallback was used.
 
 ## CORS & Preflight Notes
@@ -51,13 +56,16 @@ To avoid: `Response to preflight request doesn't pass access control check: No '
 Browsers may block third‑party cookies; adding `Authorization: Bearer <token>` ensures internal server-to-server calls (e.g. auto-analysis) receive auth context.
 
 ### Fallback Logic
-If auto-start fails, demo sends:
+If auto-start fails, demo sends (parameter-based analysis):
 ```json
 {
   "uploadIds": ["<upload-id>"],
   "analysisType": "parameters",
-  "customParameters": [],
-  "selectedActionItemTypes": []
+	"customParameters": [
+		{ "id": "rapport", "name": "Rapport Building", "description": "...", "prompt": "...", "enabled": true, "weight": 10 },
+		{ "id": "discovery", "name": "Needs Discovery", "description": "...", "prompt": "...", "enabled": true, "weight": 20 }
+	],
+	"selectedActionItemTypes": ["Follow-up Call", "Send Documentation", "Schedule Demo"]
 }
 ```
 Ensure your `/api/analyze` route supports CORS and bearer tokens.
