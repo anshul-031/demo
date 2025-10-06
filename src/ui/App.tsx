@@ -4,7 +4,11 @@ import { DomainConfig } from './DomainConfig';
 import { UploadForm } from './UploadForm';
 
 export const App: React.FC = () => {
-  const [domain, setDomain] = useState<string>(() => localStorage.getItem('aicm-domain') || 'https://www.aicallmetrics.com');
+  const [domain, setDomain] = useState<string>(() => {
+    const saved = localStorage.getItem('aicm-domain');
+    // Prefer apex domain to avoid www → apex redirect on POST
+    return saved || 'https://aicallmetrics.com';
+  });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState<string | null>(null);
@@ -53,6 +57,7 @@ export const App: React.FC = () => {
       }
 
       if (!res.ok || !data.success) {
+        console.warn('[Demo] Login failed payload:', data);
         throw new Error(data.message || `Login failed (status ${res.status})`);
       }
 

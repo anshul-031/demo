@@ -15,7 +15,7 @@ export const DomainConfig: React.FC<DomainConfigProps> = ({ domain, onChange, di
         value={domain}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="https://www.aicallmetrics.com"
+  placeholder="https://aicallmetrics.com"
         style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: 6 }}
       />
       <small style={{ color: '#555' }}>Change this if you want to test against a different deployment (must include protocol).</small>
